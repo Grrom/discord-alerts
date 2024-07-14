@@ -17,12 +17,13 @@ test_message = {
                 {
                     "name": "field name",
                     "value": "field value",
-                    "inline": True
+                    "inline": True,
                 }
             ]
         }
     ]
 }
+# when using this test message in pubsub, make sure you update True to true, as True is only for python
 
 base64_message = base64.b64encode(json.dumps(test_message).encode("utf-8"))
-discord_alert({"data": base64_message})
+discord_alert({"data": base64_message}, None)
