@@ -1,15 +1,15 @@
 import base64
 import json
 import os
+from dotenv import load_dotenv
 import requests
 
-supported_channels = {
-    "alerts": os.getenv("ALERTS_URL"),
-    "expen-sync": os.getenv("EXPENSYNC_URL")
-}
+load_dotenv()
 
+ALERTS_WEBHOOK_URL = os.getenv("ALERTS_WEBHOOK_URL")
+BASE_WEBHOOK_URL = "https://discord.com/api/webhooks"
 
-def discord_alert(event, context):
+def discord_alert(event):
     """Triggered from a message on a Cloud Pub/Sub topic.
     Args:
         event (dict): Event payload.
@@ -19,7 +19,7 @@ def discord_alert(event, context):
     pubsub_message = base64.b64decode(event["data"]).decode("utf-8")
     request_body = json.loads(pubsub_message)
 
-    url, body = get_alert(request_body)
+    url, body = _get_alert(request_body)
 
     request = requests.post(
         url,
@@ -30,19 +30,23 @@ def discord_alert(event, context):
     return "done"
 
 
-def get_alert(request_body):
-    alerts_webhook_url = supported_channels["alerts"]
-    if alerts_webhook_url is None:
-        return alerts_webhook_url, {"content": f"alerts webhook url is missing"}
+def _get_alert(request_body):
+    if ALERTS_WEBHOOK_URL is None:
+        print("alerts webhook url is missing")
+        return ALERTS_WEBHOOK_URL, {"content": f"alerts webhook url is missing"}
 
-    channel_name = request_body.get("channel-name")
-    if channel_name is None:
-        return alerts_webhook_url, {"content": f"attempted to send alert but channel name was not passed"}
+    webhook_id = request_body.get("webhook-id")
+    if webhook_id is None:
+        print(f"webhook id is missing: {request_body}")
+        return ALERTS_WEBHOOK_URL, {"content": f"webhook id is missing: {request_body}"}
+    
+    webhook_token = request_body.get("webhook-token")
+    if webhook_token is None:
+        print(f"webhook token is missing: {request_body}")
+        return ALERTS_WEBHOOK_URL, {"content": f"webhook token is missing: {request_body}"
+    }
 
-    webhook_url = supported_channels.get(channel_name)
-    if webhook_url is None:
-        supported_channel_names = ", ".join(str(element) for element in supported_channels.keys())
-        return alerts_webhook_url, {"content": f"attempted to send alert to unsupported channel: `{channel_name}`, channels_supported: `{supported_channel_names}`"}
+    webhook_url = f"{BASE_WEBHOOK_URL}/{webhook_id}/{webhook_token}"
 
     content = request_body.get("content") or "no content"
     embeds = request_body.get("embeds") or []
