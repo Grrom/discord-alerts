@@ -9,7 +9,7 @@ load_dotenv()
 ALERTS_WEBHOOK_URL = os.getenv("ALERTS_WEBHOOK_URL")
 BASE_WEBHOOK_URL = "https://discord.com/api/webhooks"
 
-def discord_alert(event):
+def discord_alert(event, _):
     """Triggered from a message on a Cloud Pub/Sub topic.
     Args:
         event (dict): Event payload.
