@@ -1,0 +1,7 @@
+{
+  "name": "For discord alerts for my personal automations",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": ".."
+  }
+}
