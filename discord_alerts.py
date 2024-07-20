@@ -6,8 +6,13 @@ import requests
 
 load_dotenv()
 
-ALERTS_WEBHOOK_URL = os.getenv("ALERTS_WEBHOOK_URL")
 BASE_WEBHOOK_URL = "https://discord.com/api/webhooks"
+
+SUPPORTED_CHANNELS = {
+    "alerts": os.getenv("ALERTS_WEBHOOK_URL"),
+}
+ALERTS_WEBHOOK_URL = SUPPORTED_CHANNELS["alerts"]
+NOT_RICK_ROLL = "https://youtu.be/dQw4w9WgXcQ?si=hMjJQuGl_OMZcitA"
 
 def discord_alert(event, _):
     """Triggered from a message on a Cloud Pub/Sub topic.
@@ -31,26 +36,35 @@ def discord_alert(event, _):
 
 
 def _get_alert(request_body):
-    if ALERTS_WEBHOOK_URL is None:
-        print("alerts webhook url is missing")
-        return ALERTS_WEBHOOK_URL, {"content": f"alerts webhook url is missing"}
-
-    webhook_id = request_body.get("webhook-id")
-    if webhook_id is None:
-        print(f"webhook id is missing: {request_body}")
-        return ALERTS_WEBHOOK_URL, {"content": f"webhook id is missing: {request_body}"}
+    channel_name = request_body.get("channel-name")
+    if channel_name not in SUPPORTED_CHANNELS.keys():
+        return ALERTS_WEBHOOK_URL, {"content": f"channel {channel_name} is not supported, please use one of `{', '.join(list(SUPPORTED_CHANNELS.keys()))}`"}
     
-    webhook_token = request_body.get("webhook-token")
-    if webhook_token is None:
-        print(f"webhook token is missing: {request_body}")
-        return ALERTS_WEBHOOK_URL, {"content": f"webhook token is missing: {request_body}"
-    }
+    webhook_url = SUPPORTED_CHANNELS[channel_name]
 
-    webhook_url = f"{BASE_WEBHOOK_URL}/{webhook_id}/{webhook_token}"
+    message = request_body.get("message") or ""
 
-    content = request_body.get("content") or "no content"
-    embeds = request_body.get("embeds") or []
+    fields_param = request_body.get("fields") or []
+    fields = []
+    for field in fields_param:
+        fields.append(
+            {
+                "name": field.get("name") or "",
+                "value": field.get("value") or "",
+                "inline": field.get("inline") or False,
+            }
+        )
+
+    embeds = [
+        {
+            "title": message,
+            "type": "rich",
+            "url": request_body.get("link") or NOT_RICK_ROLL,
+            "fields": fields,
+        }
+    ]
+
     attachments = request_body.get("attachments") or []
 
-    body = {"content": content, "embeds": embeds, "attachments": attachments}
+    body = {"content": "", "embeds": embeds, "attachments": attachments}
     return webhook_url, body
